@@ -1,0 +1,6 @@
+# Note Management System Requirements
+# This application uses only Python standard library modules
+# No external dependencies are required
+
+# For development/testing (optional):
+# pytest>=7.0.0
