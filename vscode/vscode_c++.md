@@ -55,7 +55,7 @@
 ```
 
 
-## lauch.json
+## launch.json
 定义如何启动和调试程序
 
 - 指定执行文件：program
@@ -69,3 +69,13 @@
 ## c_cpp_properties.json
 C/C++编辑器配置文件:仅仅针对于编辑器来说，不然头文件包含爆红虽然可能可以编译，
 但是编辑器不认识
+
+
+## 模板
+[tasks.json](../resource_file/tasks.json)
+
+[settings.json](../resource_file/settings.json)
+ 
+[launch.json](../resource_file/launch.json) 
+  
+[c_cpp_properties.json](../resource_file/c_cpp_properties.json)

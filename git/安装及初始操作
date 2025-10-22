@@ -1,3 +1,12 @@
+<!--
+ * @Author: running-code-pp 3320996652@qq.com
+ * @Date: 2025-10-09 00:49:50
+ * @LastEditors: running-code-pp 3320996652@qq.com
+ * @LastEditTime: 2025-10-15 23:07:13
+ * @FilePath: \note\git\安装及初始操作
+ * @Description: 
+ * @Copyright: Copyright (c) 2025 by ${git_name}, All Rights Reserved.
+-->
 [Git安装指南](https://git-scm.com/book/zh/v2/%E8%B5%B7%E6%AD%A5-%E5%AE%89%E8%A3%85-Git)
 
 ## 目录
@@ -19,8 +28,9 @@ git config --global --list
 
 ## 1. 设置全局用户名和邮箱
 
-git config --global user.name "你的用户名"\
-git config --global user.email "你的邮箱"
+git config --global user.name "running-code-pp"
+
+git config --global user.email "3320996652@qq.com"
 
 ## 2. 查看全局用户名和邮箱
 bash
