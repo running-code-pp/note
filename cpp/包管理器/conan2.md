@@ -31,3 +31,10 @@ conan install 依赖包/版本
 
 # 查找依赖
 conan search "boost*" --remote=conancenter
+
+
+# 查看远程仓库列表
+conan remote list
+
+# 移除远程仓库
+conan remote remove bincrafters
