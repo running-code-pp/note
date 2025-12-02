@@ -1,12 +1,23 @@
-<!--
- * @Author: running-code-pp 3320996652@qq.com
- * @Date: 2025-10-12 16:14:48
- * @LastEditors: running-code-pp 3320996652@qq.com
- * @LastEditTime: 2025-10-13 00:49:27
- * @FilePath: \note\cpp\asio(nonboost)\asio接口文档.md
- * @Description: 
- * @Copyright: Copyright (c) 2025 by ${git_name}, All Rights Reserved.
--->
+- [io\_context](#io_context)
+  - [注意事项](#注意事项)
+- [Completion Handler：异步操作结果处理器](#completion-handler异步操作结果处理器)
+- [IO对象](#io对象)
+- [asio::error\_code](#asioerror_code)
+- [缓冲区](#缓冲区)
+- [endpoint，网络地址的标准化表示](#endpoint网络地址的标准化表示)
+- [Resolvers 解析器](#resolvers-解析器)
+- [execution contexts 执行上下文](#execution-contexts-执行上下文)
+- [多线程和并发控制](#多线程和并发控制)
+  - [多线程运行io\_context](#多线程运行io_context)
+  - [Strand 异步操作的“序列化执行器”](#strand-异步操作的序列化执行器)
+- [所有权与生命周期管理](#所有权与生命周期管理)
+  - [共享所有权模式](#共享所有权模式)
+- [定时器](#定时器)
+  - [system\_timer 系统时钟定时器](#system_timer-系统时钟定时器)
+  - [high\_resolution\_timer 高精度定时器](#high_resolution_timer-高精度定时器)
+  - [deadline\_timer 兼容旧接口的定时器](#deadline_timer-兼容旧接口的定时器)
+  - [steady\_timer 稳定时钟计时器](#steady_timer-稳定时钟计时器)
+
 # io_context
 ```
 asio的核心调度组件，本质是一个eventloop,负责管理所有异步操作的生命周期，从注册，等待事件触发，到最终调用
@@ -19,16 +30,16 @@ asio的核心调度组件，本质是一个eventloop,负责管理所有异步操
 
 ```
 
-| 方法 | 功能描述 | 线程安全？ |
-|------|----------|------------|
-| `run()` | 阻塞线程，持续处理队列中的完成处理程序，直到所有异步操作完成且无"工作守护"（见下文）。 | 否（同一io_context可被多线程调用run()，但单线程内不可重入） |
-| `run_one()` | 阻塞线程，处理一个完成处理程序后返回，返回值为"是否处理了任务"（size_t）。 |  否 |
-| `poll()` | 非阻塞，一次性处理当前队列中所有就绪的完成处理程序，立即返回处理的任务数。 |  否 |
-| `poll_one()` | 非阻塞，处理一个就绪的完成处理程序（若存在），返回值为"是否处理了任务"。 | 否  |
-| `stop()` | 立即终止事件循环，未处理的任务会被标记为"已取消"，后续run()调用会直接返回。 | 是 |
-| `restart()` | 重置io_context的"停止状态"，使其可再次调用run()（适用于stop()后重启的场景）。 | 否 |
-| `post(F&& f)` | 向io_context提交一个任务f（立即加入队列，不依赖外部事件） | 是 |
-| `dispatch(F&& f)` | 若当前线程正在执行io_context的事件循环，则直接执行f；否则等同于post | 是 |
+| 方法              | 功能描述                                                                               | 线程安全？                                                  |
+| ----------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `run()`           | 阻塞线程，持续处理队列中的完成处理程序，直到所有异步操作完成且无"工作守护"（见下文）。 | 否（同一io_context可被多线程调用run()，但单线程内不可重入） |
+| `run_one()`       | 阻塞线程，处理一个完成处理程序后返回，返回值为"是否处理了任务"（size_t）。             | 否                                                          |
+| `poll()`          | 非阻塞，一次性处理当前队列中所有就绪的完成处理程序，立即返回处理的任务数。             | 否                                                          |
+| `poll_one()`      | 非阻塞，处理一个就绪的完成处理程序（若存在），返回值为"是否处理了任务"。               | 否                                                          |
+| `stop()`          | 立即终止事件循环，未处理的任务会被标记为"已取消"，后续run()调用会直接返回。            | 是                                                          |
+| `restart()`       | 重置io_context的"停止状态"，使其可再次调用run()（适用于stop()后重启的场景）。          | 否                                                          |
+| `post(F&& f)`     | 向io_context提交一个任务f（立即加入队列，不依赖外部事件）                              | 是                                                          |
+| `dispatch(F&& f)` | 若当前线程正在执行io_context的事件循环，则直接执行f；否则等同于post                    | 是                                                          |
 
 
 ## 注意事项
@@ -88,13 +99,13 @@ int main() {
 # IO对象
 asio对于os底层IO资源的封装，例如套接字，定时器，串口，从而提供统一的同步/异步接口
 
-| I/O对象类型 | 功能描述 | 核心方法示例 |
-|-------------|----------|-------------|
-| `asio::steady_timer` | 基于单调时钟的定时器（不受系统时间调整影响），用于定时触发操作。 | `expires_after()`（设置过期时间）、`async_wait()`（异步等待） |
-| `asio::ip::tcp::socket` | TCP协议套接字，用于面向连接的可靠数据传输。 | `connect()`/`async_connect()`、`read_some()`/`async_read_some()` |
-| `asio::ip::udp::socket` | UDP协议套接字，用于无连接的不可靠数据传输（适用于广播、低延迟场景）。 | `send_to()`/`async_send_to()`、`receive_from()`/`async_receive_from()` |
-| `asio::serial_port` | 串行端口对象，用于与串口设备（如传感器、嵌入式设备）通信。 | `open()`（打开端口）、`write_some()`/`async_write_some()` |
-| `asio::ip::tcp::acceptor` | TCP服务器端 acceptor，用于监听并接受客户端连接请求。 | `bind()`（绑定地址端口）、`listen()`（开始监听）、`async_accept()`（异步接受） |
+| I/O对象类型               | 功能描述                                                              | 核心方法示例                                                                   |
+| ------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `asio::steady_timer`      | 基于单调时钟的定时器（不受系统时间调整影响），用于定时触发操作。      | `expires_after()`（设置过期时间）、`async_wait()`（异步等待）                  |
+| `asio::ip::tcp::socket`   | TCP协议套接字，用于面向连接的可靠数据传输。                           | `connect()`/`async_connect()`、`read_some()`/`async_read_some()`               |
+| `asio::ip::udp::socket`   | UDP协议套接字，用于无连接的不可靠数据传输（适用于广播、低延迟场景）。 | `send_to()`/`async_send_to()`、`receive_from()`/`async_receive_from()`         |
+| `asio::serial_port`       | 串行端口对象，用于与串口设备（如传感器、嵌入式设备）通信。            | `open()`（打开端口）、`write_some()`/`async_write_some()`                      |
+| `asio::ip::tcp::acceptor` | TCP服务器端 acceptor，用于监听并接受客户端连接请求。                  | `bind()`（绑定地址端口）、`listen()`（开始监听）、`async_accept()`（异步接受） |
 
 
 # asio::error_code
@@ -119,13 +130,13 @@ Asio的缓冲区组件设计用于高效管理数据传输，避免不必要的�
 
 `**主要缓冲区类型**`
 
-| 缓冲区类型 | 功能描述 | 适用场景 |
-|------------|----------|----------|
-| `asio::const_buffer` | 只读缓冲区，包装const void*和大小，用于读取操作或发送常量数据。 | `async_send()`、`async_write()`发送常量数据 |
-| `asio::mutable_buffer` | 可修改缓冲区，包装void*和大小，用于写入操作或接收数据。 | `async_receive()`、`async_read()`接收数据 |
-| `asio::buffer()` | 通用工厂函数，根据输入数据自动创建const_buffer或mutable_buffer。 | 简化缓冲区创建，自动推断类型 |
-| `asio::streambuf` | 基于流的缓冲区，类似std::stringstream，支持流式读写和动态内存管理。 | 处理变长数据（如HTTP报文、协议帧） |
-| `asio::dynamic_buffer` | 适配器，将std::string或std::vector<char>包装为可动态扩展的缓冲区。 | 需自动扩容的场景（如读取未知长度的数据） |
+| 缓冲区类型             | 功能描述                                                            | 适用场景                                    |
+| ---------------------- | ------------------------------------------------------------------- | ------------------------------------------- |
+| `asio::const_buffer`   | 只读缓冲区，包装const void*和大小，用于读取操作或发送常量数据。     | `async_send()`、`async_write()`发送常量数据 |
+| `asio::mutable_buffer` | 可修改缓冲区，包装void*和大小，用于写入操作或接收数据。             | `async_receive()`、`async_read()`接收数据   |
+| `asio::buffer()`       | 通用工厂函数，根据输入数据自动创建const_buffer或mutable_buffer。    | 简化缓冲区创建，自动推断类型                |
+| `asio::streambuf`      | 基于流的缓冲区，类似std::stringstream，支持流式读写和动态内存管理。 | 处理变长数据（如HTTP报文、协议帧）          |
+| `asio::dynamic_buffer` | 适配器，将std::string或std::vector<char>包装为可动态扩展的缓冲区。  | 需自动扩容的场景（如读取未知长度的数据）    |
 
 
 # endpoint，网络地址的标准化表示
@@ -360,12 +371,12 @@ std::vector<char> _buffer;
 
 asio 提供了多种定时器类型，分别适用于不同的时间源和精度需求：
 
-| 定时器类型 | 说明 | 适用场景 |
-|------------|------|----------|
-| `asio::steady_timer` | 基于单调时钟，不受系统时间调整影响 | 精确的时间间隔、超时控制 |
-| `asio::system_timer` | 基于系统时钟（wall clock），受系统时间调整影响 | 需要与真实时间同步的场景，如定点任务 |
-| `asio::high_resolution_timer` | 基于高精度时钟，提供纳秒级精度 | 需要极高时间精度的场景 |
-| `asio::deadline_timer` | 兼容Boost.Asio的旧接口，基于系统时钟 | 兼容老代码 |
+| 定时器类型                    | 说明                                           | 适用场景                             |
+| ----------------------------- | ---------------------------------------------- | ------------------------------------ |
+| `asio::steady_timer`          | 基于单调时钟，不受系统时间调整影响             | 精确的时间间隔、超时控制             |
+| `asio::system_timer`          | 基于系统时钟（wall clock），受系统时间调整影响 | 需要与真实时间同步的场景，如定点任务 |
+| `asio::high_resolution_timer` | 基于高精度时钟，提供纳秒级精度                 | 需要极高时间精度的场景               |
+| `asio::deadline_timer`        | 兼容Boost.Asio的旧接口，基于系统时钟           | 兼容老代码                           |
 
 ---
 
