@@ -1,2 +1,2 @@
-# note
-record some of my learn note
+# introduce
+my note of software engineering learnning
