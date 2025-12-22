@@ -1,0 +1,1 @@
+[github 链接](https://github.com/nelvko/clash-for-linux-install.git)
